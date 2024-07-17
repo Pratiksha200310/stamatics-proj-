@@ -1,0 +1,113 @@
+/******************************************************************************
+
+Welcome to GDB Online.
+  GDB online is an online compiler and debugger tool for C, C++, Python, PHP, Ruby, 
+  C#, OCaml, VB, Perl, Swift, Prolog, Javascript, Pascal, COBOL, HTML, CSS, JS
+  Code, Compile, Run and Debug online from anywhere in world.
+
+*******************************************************************************/
+(* Token types *)
+type token =
+  | Ident of string
+  | Keyword of string
+  | BoolOp of string
+  | BoolConst of bool
+  | ArithOp of string
+  | IntConst of int
+  | CompOp of string
+  | StringOp of string
+  | StringConst of string
+  | Paren of string
+  | Comma
+  | EOF
+
+(* Keywords and operators *)
+let keywords = ["if"; "then"; "else"; "fst"; "snd"]
+let bool_ops = ["and"; "or"; "not"]
+let bool_consts = ["true"; "false"]
+let arith_ops = ["+"; "-"; "*"; "/"; "%"; "^"]
+let comp_ops = ["="; "<"; "<="; ">"; ">="; "<>"]
+let parens = ["("; ")"]
+let comma = ","
+
+(* Check if a character is a digit *)
+let is_digit c = '0' <= c && c <= '9'
+
+(* Check if a character is a letter *)
+let is_letter c = ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')
+
+(* Check if a character is alphanumeric or a prime/underscore *)
+let is_alnum_prime c = is_letter c || is_digit c || c = '\'' || c = '_'
+
+(* Tokenize a string *)
+let rec tokenize input =
+  let len = String.length input in
+  let rec aux i =
+    if i >= len then [EOF]
+    else match input.[i] with
+      | ' ' | '\t' | '\n' -> aux (i + 1) (* Skip whitespace *)
+      | c when is_digit c ->
+        let j = ref i in
+        while !j < len && is_digit input.[!j] do incr j done;
+        IntConst (int_of_string (String.sub input i (!j - i))) :: aux !j
+      | c when is_letter c || c = '_' ->
+        let j = ref i in
+        while !j < len && is_alnum_prime input.[!j] do incr j done;
+        let ident = String.sub input i (!j - i) in
+        if List.mem ident keywords then Keyword ident :: aux !j
+        else if List.mem ident bool_ops then BoolOp ident :: aux !j
+        else if List.mem ident bool_consts then BoolConst (ident = "true") :: aux !j
+        else Ident ident :: aux !j
+      | '"' ->
+        let j = ref (i + 1) in
+        while !j < len && input.[!j] <> '"' do incr j done;
+        if !j < len then
+          StringConst (String.sub input (i + 1) (!j - i - 1)) :: aux (!j + 1)
+        else failwith "Unterminated string constant"
+      | c when List.mem (String.make 1 c) arith_ops ->
+        ArithOp (String.make 1 c) :: aux (i + 1)
+      | '<' when i + 1 < len && input.[i + 1] = '=' -> CompOp "<=" :: aux (i + 2)
+      | '>' when i + 1 < len && input.[i + 1] = '=' -> CompOp ">=" :: aux (i + 2)
+      | '<' -> CompOp "<" :: aux (i + 1)
+      | '>' -> CompOp ">" :: aux (i + 1)
+      | '=' when i + 1 < len && input.[i + 1] = '=' -> CompOp "=" :: aux (i + 2)
+      | '<' when i + 1 < len && input.[i + 1] = '>' -> CompOp "<>" :: aux (i + 2)
+      | '(' | ')' -> Paren (String.make 1 input.[i]) :: aux (i + 1)
+      | ',' -> Comma :: aux (i + 1)
+      | _ -> failwith ("Unexpected character: " ^ String.make 1 input.[i])
+  in
+  aux 0
+
+(* Test cases *)
+let test_cases = [
+  "if x and y then true else false";
+  "a + b - c * d / e % f ^ g";
+  "x <= y <> z >= w";
+  "\"hello, world\"";
+  "f(a, b, c)";
+  "_ident1 and ident2'";
+  "true or false"
+]
+
+(* Run test cases *)
+let () =
+  List.iter (fun input ->
+    Printf.printf "Input: %s\n" input;
+    let tokens = tokenize input in
+    List.iter (fun token ->
+      match token with
+      | Ident s -> Printf.printf "Ident(%s) " s
+      | Keyword s -> Printf.printf "Keyword(%s) " s
+      | BoolOp s -> Printf.printf "BoolOp(%s) " s
+      | BoolConst b -> Printf.printf "BoolConst(%b) " b
+      | ArithOp s -> Printf.printf "ArithOp(%s) " s
+      | IntConst n -> Printf.printf "IntConst(%d) " n
+      | CompOp s -> Printf.printf "CompOp(%s) " s
+      | StringOp s -> Printf.printf "StringOp(%s) " s
+      | StringConst s -> Printf.printf "StringConst(%s) " s
+      | Paren s -> Printf.printf "Paren(%s) " s
+      | Comma -> Printf.printf "Comma "
+      | EOF -> Printf.printf "EOF"
+    ) tokens;
+    Printf.printf "\n"
+  ) test_cases
